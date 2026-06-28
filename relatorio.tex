@@ -1,0 +1,1100 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[left=3cm,right=3cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{subcaption} 
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{float}
+
+% Configurações de termos personalizados em português para o algorithm2e
+\SetKwInput{Input}{Entrada}
+\SetKwInput{Output}{Saída}
+\SetKwIF{If}{ElseIf}{Else}{se}{então}{senão se}{senão}{fim se}
+\SetKwFor{Para}{para}{faça}{fim para}
+\SetKw{Retorna}{retorne}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{\textbf{Trabalho Prático de Aprendizado de Máquina Via Álgebra Linear}}
+
+\author{\textbf{Déborah Brito Yamamoto} \\ 
+Matrícula: 2022069409 \\
+Departamento de Ciência da Computação \\
+Universidade Federal de Minas Gerais (UFMG)}
+\date{\today}
+\maketitle
+
+\section{Introdução}
+
+O treinamento de modelos modernos de aprendizado profundo consiste, essencialmente, em um grande problema de otimização numérica. Dado um conjunto de exemplos rotulados, deseja-se encontrar um conjunto de parâmetros capazes de minimizar uma função de perda (\textit{loss function}), isto é, uma medida quantitativa do erro cometido pelo modelo durante suas predições.
+
+Matematicamente, seja
+
+\[
+\theta \in \mathbb{R}^{n}
+\]
+
+o vetor que reúne todos os parâmetros treináveis da rede neural, onde $n$ pode facilmente atingir dezenas ou centenas de milhões em arquiteturas modernas. Define-se uma função de perda
+
+\[
+\mathcal{L}(\theta),
+\]
+
+que associa um valor escalar à qualidade da solução atual. Quanto menor esse valor, melhor o desempenho do modelo sobre os dados de treinamento.
+
+O problema de treinamento pode então ser escrito como
+
+\[
+\theta^{*}
+=
+\arg\min_{\theta}
+\mathcal{L}(\theta).
+\]
+
+À primeira vista, esse objetivo parece suficiente: basta encontrar o menor valor possível da função de perda. Entretanto, a prática demonstra que essa estratégia é incompleta. Em problemas reais, o objetivo não consiste em memorizar os exemplos presentes no conjunto de treinamento, mas sim aprender padrões capazes de serem utilizados corretamente em exemplos nunca observados anteriormente.
+
+Essa propriedade recebe o nome de \textbf{generalização}.
+
+Em outras palavras, um modelo apresenta boa capacidade de generalização quando mantém um desempenho elevado mesmo sobre dados provenientes da mesma distribuição estatística, mas que não participaram do processo de treinamento.
+
+\subsection{Generalização e Overfitting}
+
+Considere dois modelos distintos treinados sobre exatamente o mesmo conjunto de dados.
+
+Ambos podem alcançar erro praticamente nulo durante o treinamento. No entanto, quando avaliados sobre novos exemplos, um deles pode apresentar desempenho significativamente inferior.
+
+Esse fenômeno é conhecido como \textbf{overfitting}. Nele, o modelo aprende detalhes extremamente específicos dos exemplos de treinamento — incluindo ruídos e particularidades irrelevantes — em vez de capturar regularidades gerais da distribuição dos dados.
+
+Esse comportamento mostra que minimizar apenas a perda empírica
+
+\[
+\mathcal{L}_{train}
+\]
+
+não garante, necessariamente, uma pequena perda sobre o conjunto de teste
+
+\[
+\mathcal{L}_{test}.
+\]
+
+Consequentemente, surge uma questão fundamental:
+
+\begin{center}
+\textit{Por que dois modelos com exatamente a mesma perda de treinamento podem apresentar capacidades de generalização completamente diferentes?}
+\end{center}
+
+A resposta está relacionada não apenas ao valor mínimo encontrado, mas também à geometria local da função de perda ao redor desse mínimo.
+
+\subsection{Paisagem de Perda}
+
+Pode-se imaginar a função de perda como uma superfície de alta dimensão denominada \textbf{paisagem de perda} (\textit{loss landscape}).
+
+Cada ponto dessa superfície corresponde a um conjunto específico de parâmetros da rede neural.
+
+A altura da superfície representa o valor da função de perda.
+
+Durante o treinamento, algoritmos de otimização, como o Gradiente Descendente Estocástico (SGD), percorrem essa superfície procurando regiões onde a perda seja mínima.
+
+Embora essa ideia seja simples em duas dimensões, nas redes neurais modernas a paisagem de perda é definida em espaços com milhões de dimensões, tornando impossível sua visualização direta.
+
+Ainda assim, diversas propriedades geométricas dessa superfície podem ser estudadas matematicamente.
+
+Entre elas, destaca-se a curvatura local da função de perda.
+
+\subsection{Mínimos Sharp e Flat}
+
+Nem todos os mínimos encontrados durante a otimização possuem as mesmas características geométricas.
+
+Alguns mínimos apresentam curvatura extremamente elevada.
+
+Nesses casos, pequenas alterações nos parâmetros produzem grandes aumentos no valor da perda.
+
+Esses mínimos recebem o nome de \textbf{sharp minima}.
+
+Por outro lado, existem mínimos cuja vizinhança permanece praticamente constante.
+
+Mesmo após pequenas perturbações nos parâmetros, o valor da perda sofre pouca alteração.
+
+Esses são denominados \textbf{flat minima}.
+
+Diversos estudos experimentais indicam que modelos que convergem para mínimos planos tendem a apresentar melhor capacidade de generalização, pois pequenas perturbações inevitáveis durante a inferência não comprometem significativamente o desempenho do modelo.
+
+Em contraste, modelos localizados em mínimos muito estreitos costumam ser altamente sensíveis a pequenas variações dos parâmetros.
+
+\subsection{A Hessiana como Medida de Curvatura}
+
+A principal ferramenta matemática utilizada para quantificar essa curvatura é a matriz Hessiana.
+
+Seja
+
+\[
+\mathcal{L}(\theta)
+\]
+
+uma função de perda duas vezes continuamente diferenciável.
+
+Sua Hessiana é definida como
+
+\[
+H(\theta)
+=
+\nabla_{\theta}^{2}\mathcal{L}(\theta),
+\]
+
+isto é, a matriz composta por todas as derivadas parciais de segunda ordem da função.
+
+Enquanto o gradiente informa a direção de maior crescimento da perda, a Hessiana descreve como essa direção varia localmente.
+
+Em particular, seus autovalores medem a curvatura da superfície ao longo de diferentes direções do espaço de parâmetros.
+
+O maior autovalor da Hessiana,
+
+\[
+\lambda_{\max},
+\]
+
+corresponde justamente à direção de maior curvatura da paisagem de perda.
+
+Quanto maior esse valor, mais "estreito" tende a ser o mínimo encontrado.
+
+Assim, estimar o maior autovalor da Hessiana fornece uma medida quantitativa da nitidez (\textit{sharpness}) do mínimo.
+
+\subsection{Desafio Computacional}
+
+Apesar de sua importância teórica, calcular explicitamente a Hessiana é praticamente impossível em redes neurais modernas.
+
+Se uma arquitetura possui
+
+\[
+n
+\]
+
+parâmetros, então a Hessiana possui dimensão
+
+\[
+n \times n,
+\]
+
+o que implica custo de armazenamento da ordem de
+
+\[
+\mathcal{O}(n^{2})
+\]
+
+e custo computacional para decomposição espectral da ordem de
+
+\[
+\mathcal{O}(n^{3}).
+\]
+
+Para redes com centenas de milhões de parâmetros, a construção explícita dessa matriz torna-se inviável tanto em memória quanto em tempo de processamento.
+
+Surge então uma nova questão:
+
+\begin{center}
+\textit{Como estimar o maior autovalor da Hessiana sem nunca construir a Hessiana?}
+\end{center}
+
+A resposta envolve duas ferramentas fundamentais da Álgebra Linear e da Diferenciação Automática:
+
+\begin{itemize}
+    \item o Método da Potência, responsável por aproximar iterativamente o maior autovalor de uma matriz utilizando apenas produtos matriz-vetor;
+    \item o Truque de Pearlmutter, que permite calcular exatamente o produto Hessiana-vetor sem construir explicitamente a Hessiana.
+\end{itemize}
+
+A combinação dessas técnicas possibilita estimar propriedades espectrais da Hessiana mesmo em redes neurais com milhões de parâmetros.
+
+Por fim, essas informações são diretamente relacionadas ao algoritmo \textit{Sharpness-Aware Minimization} (SAM), cujo objetivo consiste em conduzir a otimização para mínimos geometricamente mais planos, favorecendo uma melhor capacidade de generalização.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Fundamentos de Álgebra Linear}
+
+Antes de estudar o Método da Potência, o Truque de Pearlmutter e o algoritmo
+Sharpness-Aware Minimization (SAM), é importante revisar alguns conceitos de
+Álgebra Linear que aparecem continuamente ao longo deste trabalho.
+
+Embora esses conceitos sejam amplamente conhecidos, compreender sua
+interpretação geométrica facilita significativamente o entendimento dos
+algoritmos apresentados nas seções seguintes.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Vetores como Pontos e Direções}
+
+Em Álgebra Linear, um vetor pode ser interpretado de duas maneiras
+equivalentes.
+
+A primeira consiste em enxergá-lo como um ponto no espaço.
+
+Por exemplo,
+
+\[
+x=
+\begin{bmatrix}
+2\\
+1
+\end{bmatrix}
+\]
+
+representa o ponto de coordenadas $(2,1)$ no plano.
+
+Entretanto, na maior parte deste trabalho será utilizada uma segunda
+interpretação, muito mais importante para Aprendizado de Máquina.
+
+Um vetor será visto como uma direção associada a uma determinada magnitude.
+
+Por exemplo,
+
+\[
+v=
+\begin{bmatrix}
+3\\
+4
+\end{bmatrix}
+\]
+
+indica uma direção específica do plano cujo comprimento é
+
+\[
+\|v\|_2
+=
+\sqrt{3^2+4^2}
+=
+5.
+\]
+
+Essa interpretação será fundamental quando estudarmos gradientes,
+autovetores e produtos Hessiana-vetor.
+
+\paragraph{Exemplo.}
+
+Durante o treinamento de uma rede neural, o gradiente
+
+\[
+\nabla L(\theta)
+\]
+
+é um vetor.
+
+Ele não representa um ponto da função de perda.
+
+Em vez disso, indica a direção na qual a perda cresce mais rapidamente.
+
+Logo, atualizar os parâmetros utilizando
+
+\[
+\theta_{k+1}
+=
+\theta_k-\eta\nabla L(\theta_k)
+\]
+
+significa mover-se na direção oposta ao gradiente.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Normas}
+
+Em diversas partes deste trabalho será necessário medir o tamanho de um vetor.
+
+Essa medida recebe o nome de norma.
+
+A norma Euclidiana é definida por
+
+\[
+\|x\|_2
+=
+\sqrt{\sum_{i=1}^{n}x_i^2}.
+\]
+
+Ela corresponde exatamente à distância do vetor até a origem.
+
+\paragraph{Exemplo.}
+
+Considere
+
+\[
+x=
+\begin{bmatrix}
+1\\
+2\\
+2
+\end{bmatrix}.
+\]
+
+Temos
+
+\[
+\|x\|_2
+=
+\sqrt{1+4+4}
+=
+3.
+\]
+
+No algoritmo SAM, essa norma aparece ao normalizar o gradiente,
+
+\[
+\hat{\epsilon}
+=
+\rho
+\frac{\nabla L(w)}
+{\|\nabla L(w)\|}.
+\]
+
+Observe que apenas a direção do gradiente é utilizada.
+
+Seu comprimento é removido pela normalização.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Transformações Lineares}
+
+Uma matriz pode ser interpretada como uma transformação aplicada aos vetores.
+
+Considere
+
+\[
+A=
+\begin{bmatrix}
+2&0\\
+0&1
+\end{bmatrix}.
+\]
+
+Aplicando essa matriz ao vetor
+
+\[
+x=
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix},
+\]
+
+obtém-se
+
+\[
+Ax=
+\begin{bmatrix}
+2\\
+2
+\end{bmatrix}.
+\]
+
+Observe que apenas a coordenada horizontal foi ampliada.
+
+Portanto, multiplicar um vetor por uma matriz significa aplicar uma
+transformação geométrica.
+
+Essa interpretação será essencial para compreender o Método da Potência.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Autovalores e Autovetores}
+
+Em geral, uma transformação linear modifica completamente um vetor.
+
+Entretanto, existem direções especiais que permanecem inalteradas,
+sofrendo apenas um fator de escala.
+
+Essas direções recebem o nome de autovetores.
+
+Formalmente,
+
+\[
+Av=\lambda v.
+\]
+
+O vetor
+
+\[
+v
+\]
+
+é chamado autovetor, enquanto
+
+\[
+\lambda
+\]
+
+é denominado autovalor.
+
+O autovalor informa quanto aquela direção foi expandida ou contraída.
+
+\paragraph{Exemplo.}
+
+Considere
+
+\[
+A=
+\begin{bmatrix}
+3&0\\
+0&1
+\end{bmatrix}.
+\]
+
+Aplicando a transformação sobre
+
+\[
+v_1=
+\begin{bmatrix}
+1\\
+0
+\end{bmatrix},
+\]
+
+temos
+
+\[
+Av_1=
+\begin{bmatrix}
+3\\
+0
+\end{bmatrix}
+=
+3v_1.
+\]
+
+Logo,
+
+\[
+\lambda_1=3.
+\]
+
+Da mesma forma,
+
+\[
+v_2=
+\begin{bmatrix}
+0\\
+1
+\end{bmatrix}
+\]
+
+satisfaz
+
+\[
+Av_2=v_2,
+\]
+
+portanto
+
+\[
+\lambda_2=1.
+\]
+
+Observe que a transformação estica muito mais a direção horizontal do que
+a vertical.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Interpretação Geométrica dos Autovalores}
+
+Os autovalores medem a intensidade com que uma transformação linear altera
+cada direção do espaço.
+
+Quanto maior o módulo do autovalor,
+
+\[
+|\lambda|,
+\]
+
+maior será o alongamento daquela direção.
+
+No Método da Potência veremos que, após sucessivas multiplicações pela matriz,
+
+\[
+A^k x,
+\]
+
+a componente associada ao maior autovalor cresce exponencialmente mais
+rápido que todas as demais.
+
+Esse comportamento explica por que o algoritmo converge para o autovetor
+dominante.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Quociente de Rayleigh}
+
+Depois que um vetor se aproxima do autovetor dominante, torna-se possível
+estimar seu autovalor através do Quociente de Rayleigh,
+
+\[
+R(x)
+=
+\frac{x^TAx}{x^Tx}.
+\]
+
+Quando
+
+\[
+x
+\]
+
+é exatamente um autovetor,
+
+\[
+R(x)=\lambda.
+\]
+
+Na prática, mesmo antes da convergência completa, esse quociente fornece
+excelentes aproximações do maior autovalor.
+
+Essa propriedade será utilizada diretamente no Método da Potência para
+estimar o maior autovalor da Hessiana.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{Resumo}
+
+Nesta seção foram revisados os principais conceitos de Álgebra Linear
+necessários para compreender o restante do trabalho.
+
+Em particular, deve-se lembrar que
+
+\begin{itemize}
+\item vetores podem representar direções;
+\item normas medem o comprimento de vetores;
+\item matrizes representam transformações lineares;
+\item autovetores são direções preservadas por uma transformação;
+\item autovalores indicam o fator de expansão dessas direções;
+\item o Quociente de Rayleigh fornece uma estimativa do autovalor associado a
+um vetor.
+\end{itemize}
+
+Esses conceitos serão utilizados continuamente nas próximas seções para
+explicar o Método da Potência, o Truque de Pearlmutter e o algoritmo SAM.
+
+
+
+
+\section{Conceitos Utilizados no Projeto}
+
+Esta seção conecta os conceitos matemáticos discutidos anteriormente ao
+escopo específico deste projeto. A ideia central é interpretar o treinamento
+de uma rede neural pequena, aplicada a bases como Iris e Titanic, como um
+problema geométrico em um espaço de parâmetros.
+
+Mesmo quando o modelo utilizado é pequeno em comparação com redes profundas
+modernas, os mesmos fenômenos aparecem: a função de perda define uma paisagem,
+o otimizador percorre essa paisagem, e o mínimo encontrado pode ser mais plano
+ou mais agudo.
+
+\subsection{Dados, Modelo e Parâmetros}
+
+Nos experimentos do projeto, os exemplos de entrada vêm de bases tabulares.
+No caso da base Iris, cada flor é descrita por medidas como comprimento e
+largura da sépala e da pétala. No caso da base Titanic, cada passageiro é
+descrito por atributos como classe da passagem, sexo, idade e outras
+informações disponíveis no conjunto de dados.
+
+Após o pré-processamento, cada exemplo pode ser representado por um vetor
+
+\[
+x_i \in \mathbb{R}^{d},
+\]
+
+em que \(d\) é o número de atributos usados pelo modelo. O rótulo correto é
+representado por
+
+\[
+y_i.
+\]
+
+O modelo, por sua vez, possui um conjunto de pesos e vieses. Embora esses
+parâmetros estejam distribuídos em várias camadas, é conveniente agrupá-los em
+um único vetor:
+
+\[
+\theta =
+\begin{bmatrix}
+\theta_1 & \theta_2 & \cdots & \theta_n
+\end{bmatrix}^{T}.
+\]
+
+Essa representação é exatamente a usada no código quando os parâmetros do
+modelo são ``achatados'' em um vetor unidimensional. Assim, uma rede neural
+pode ser estudada como um ponto em \(\mathbb{R}^{n}\).
+
+\paragraph{Exemplo no contexto do projeto.}
+
+Suponha uma MLP simples para o Titanic com \(d=6\) atributos de entrada, uma
+camada escondida com \(10\) neurônios e uma saída binária. Apenas a primeira
+camada já possui \(6 \times 10 = 60\) pesos, além de \(10\) vieses. A camada de
+saída possui mais \(10\) pesos e \(1\) viés. Portanto, mesmo uma rede muito
+pequena possui dezenas de parâmetros.
+
+Cada configuração possível desses parâmetros corresponde a um ponto diferente
+na paisagem de perda.
+
+\subsection{Perda Empírica}
+
+A perda empírica mede o erro médio do modelo sobre o conjunto de treinamento.
+Se o conjunto de treino possui \(m\) exemplos, ela pode ser escrita como
+
+\[
+L_{\text{train}}(\theta)
+=
+\frac{1}{m}
+\sum_{i=1}^{m}
+\ell(f_{\theta}(x_i), y_i),
+\]
+
+em que \(f_{\theta}(x_i)\) é a predição do modelo e \(\ell\) é a função de
+perda aplicada a um único exemplo.
+
+Para classificação binária, como no Titanic, uma escolha comum é a entropia
+cruzada binária. Para classificação multiclasse, como no Iris, utiliza-se
+frequentemente a entropia cruzada categórica.
+
+\paragraph{Interpretação.}
+
+Minimizar \(L_{\text{train}}\) significa procurar parâmetros que expliquem bem
+os exemplos de treino. Porém, o objetivo real do aprendizado de máquina é obter
+baixa perda também em exemplos não vistos. Por isso, acompanhamos também uma
+perda de validação ou teste:
+
+\[
+L_{\text{test}}(\theta).
+\]
+
+A diferença entre essas duas quantidades é uma forma simples de medir o
+quanto o modelo está generalizando:
+
+\[
+\text{gap de generalização}
+=
+L_{\text{test}}(\theta)
+-
+L_{\text{train}}(\theta).
+\]
+
+Um gap pequeno sugere que o modelo aprendeu padrões que aparecem fora do
+conjunto de treino. Um gap grande sugere que o modelo pode ter se ajustado
+demais aos exemplos observados.
+
+\subsection{Gradiente como Direção de Atualização}
+
+Durante o treinamento, o gradiente da perda em relação aos parâmetros indica a
+direção de maior aumento local da perda:
+
+\[
+\nabla_{\theta} L(\theta).
+\]
+
+Por isso, métodos como SGD e Adam atualizam os parâmetros no sentido oposto:
+
+\[
+\theta_{t+1}
+=
+\theta_t
+-
+\eta \nabla_{\theta} L(\theta_t),
+\]
+
+em que \(\eta\) é a taxa de aprendizado.
+
+Geometricamente, o otimizador está caminhando sobre a paisagem de perda. Em
+regiões inclinadas, o gradiente possui norma maior. Perto de um mínimo, o
+gradiente tende a ficar pequeno. Entretanto, um gradiente pequeno não informa
+sozinho se o mínimo é plano ou agudo. Para isso, precisamos olhar para a
+curvatura.
+
+\subsection{Hessiana e Aproximação Local da Loss}
+
+A Hessiana descreve como a perda se curva ao redor de um ponto. Uma maneira
+importante de entender seu papel é usar a expansão de Taylor de segunda ordem:
+
+\[
+L(\theta + \epsilon)
+\approx
+L(\theta)
++
+\nabla L(\theta)^T \epsilon
++
+\frac{1}{2}\epsilon^T H(\theta)\epsilon.
+\]
+
+Perto de um mínimo local, o gradiente \(\nabla L(\theta)\) é pequeno. Assim, o
+termo que mais explica o aumento da perda após uma pequena perturbação
+\(\epsilon\) é
+
+\[
+\frac{1}{2}\epsilon^T H(\theta)\epsilon.
+\]
+
+Esse termo mostra por que a Hessiana é tão relevante para o projeto: ela
+quantifica quanto a perda aumenta quando os parâmetros são levemente
+perturbados.
+
+\paragraph{Exemplo numérico simples.}
+
+Considere duas funções quadráticas:
+
+\[
+L_1(x,y)=10x^2+y^2
+\quad \text{e} \quad
+L_2(x,y)=x^2+y^2.
+\]
+
+Ambas possuem mínimo em \((0,0)\). Porém, \(L_1\) cresce muito mais rapidamente
+na direção \(x\). Suas Hessianas são
+
+\[
+H_1=
+\begin{bmatrix}
+20&0\\
+0&2
+\end{bmatrix},
+\quad
+H_2=
+\begin{bmatrix}
+2&0\\
+0&2
+\end{bmatrix}.
+\]
+
+O maior autovalor de \(H_1\) é \(20\), enquanto o maior autovalor de \(H_2\) é
+\(2\). Portanto, \(L_1\) possui um mínimo mais agudo, mesmo que as duas funções
+tenham o mesmo valor mínimo.
+
+Essa é a mesma ideia usada ao analisar uma rede neural treinada: não basta
+olhar para o valor da loss no ponto final; é necessário observar como a loss
+se comporta ao redor desse ponto.
+
+\subsection{Sharpness e Perturbações nos Pesos}
+
+No contexto deste projeto, sharpness pode ser entendida como a sensibilidade da
+perda a pequenas mudanças nos parâmetros. Uma forma intuitiva de medir essa
+sensibilidade é comparar
+
+\[
+L(\theta)
+\quad \text{com} \quad
+L(\theta + \epsilon),
+\]
+
+para perturbações pequenas \(\epsilon\).
+
+Se pequenas perturbações causam grande aumento da loss, o mínimo é considerado
+agudo. Se a loss quase não muda, o mínimo é considerado plano.
+
+Essa ideia aparece diretamente nas visualizações implementadas no projeto. O
+corte unidimensional avalia
+
+\[
+L(\theta^{*} + \alpha \delta),
+\]
+
+em que \(\theta^{*}\) representa os parâmetros treinados, \(\delta\) é uma
+direção de perturbação e \(\alpha\) controla a intensidade dessa perturbação.
+
+Já a visualização bidimensional avalia
+
+\[
+L(\theta^{*} + \alpha \delta_1 + \beta \delta_2),
+\]
+
+permitindo observar um pequeno pedaço da paisagem de perda ao redor da solução
+encontrada.
+
+\paragraph{Como ler os gráficos.}
+
+Em um mínimo plano, o gráfico de \(L(\theta^{*}+\alpha\delta)\) tende a formar
+um vale largo: a loss cresce lentamente quando \(\alpha\) se afasta de zero.
+Em um mínimo agudo, a curva tende a subir rapidamente perto de \(\alpha=0\).
+
+Nos mapas 2D, mínimos planos aparecem como regiões baixas e largas. Mínimos
+agudos aparecem como poços estreitos, nos quais pequenas mudanças em
+\(\alpha\) ou \(\beta\) já elevam bastante a loss.
+
+\section{Método da Potência}
+
+Após compreender os conceitos fundamentais de Álgebra Linear, podemos estudar um dos algoritmos numéricos mais importantes para problemas de grande escala: o Método da Potência (\textit{Power Iteration}).
+
+Embora seja um algoritmo extremamente simples, ele desempenha um papel fundamental em diversas áreas da Computação, incluindo recuperação de informação (PageRank), processamento de sinais, visão computacional, física computacional e aprendizado profundo.
+
+No contexto deste trabalho, seu objetivo consiste em estimar o maior autovalor da matriz Hessiana sem realizar sua decomposição espectral completa.
+
+Essa estimativa será posteriormente utilizada para analisar a geometria da função de perda e compreender o funcionamento do algoritmo Sharpness-Aware Minimization (SAM).
+
+Antes de apresentar sua formulação matemática, é importante compreender intuitivamente por que o algoritmo funciona.
+
+\subsection{Intuição}
+
+Imagine que uma matriz seja uma máquina capaz de deformar vetores.
+
+Algumas direções são pouco alteradas.
+
+Outras sofrem rotações.
+
+Algumas são contraídas.
+
+Entretanto, existe uma direção especial que sofre a maior ampliação possível.
+
+Essa direção corresponde exatamente ao autovetor associado ao maior autovalor da matriz.
+
+O Método da Potência explora justamente esse comportamento.
+
+Em vez de calcular diretamente todos os autovalores — uma tarefa extremamente cara computacionalmente — o algoritmo aplica repetidamente a transformação linear sobre um vetor qualquer.
+
+Como a direção associada ao maior autovalor cresce exponencialmente mais rápido que todas as demais, ela passa gradualmente a dominar o vetor resultante.
+
+Após um número suficiente de iterações, praticamente toda a informação referente aos demais autovetores desaparece.
+
+Consequentemente, o vetor obtido torna-se uma excelente aproximação do autovetor dominante.
+
+\subsection{Exemplo Intuitivo}
+
+Considere a matriz
+
+\[
+A=
+\begin{bmatrix}
+3&0\\
+0&1
+\end{bmatrix}.
+\]
+
+Essa matriz estica três vezes a direção horizontal, enquanto mantém inalterada a direção vertical.
+
+Escolha um vetor inicial qualquer,
+
+\[
+x_0=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}.
+\]
+
+Aplicando sucessivamente a transformação linear, obtém-se
+
+\[
+Ax_0=
+\begin{bmatrix}
+3\\
+1
+\end{bmatrix},
+\]
+
+\[
+A^2x_0=
+\begin{bmatrix}
+9\\
+1
+\end{bmatrix},
+\]
+
+\[
+A^3x_0=
+\begin{bmatrix}
+27\\
+1
+\end{bmatrix}.
+\]
+
+Observe que apenas a componente associada ao maior autovalor cresce rapidamente.
+
+Após normalizações sucessivas,
+
+\[
+\frac{A^kx_0}{\|A^kx_0\|}
+\longrightarrow
+\begin{bmatrix}
+1\\
+0
+\end{bmatrix},
+\]
+
+que corresponde exatamente ao autovetor dominante.
+
+Esse pequeno exemplo ilustra praticamente toda a ideia por trás do Método da Potência.
+
+Como os autovetores de uma matriz diagonalizável formam uma base para o espaço vetorial, qualquer vetor inicial pode ser escrito como combinação linear desses autovetores.
+
+Essa decomposição é extremamente importante, pois permite analisar separadamente como cada componente evolui durante as sucessivas multiplicações pela matriz.
+
+Assim,
+
+\[
+x_0
+=
+c_1v_1+c_2v_2+\cdots+c_nv_n.
+\]
+
+Cada coeficiente \(c_i\) mede quanto da direção \(v_i\) está presente no vetor inicial.
+
+Caso \(c_1=0\), isto é, caso o vetor inicial seja exatamente ortogonal ao autovetor dominante, o algoritmo não consegue recuperá-lo.
+
+Felizmente, essa situação possui probabilidade praticamente nula quando o vetor inicial é escolhido aleatoriamente.
+
+\subsection{Formulação Algorítmica}
+
+O Método da Potência pode ser descrito por três operações repetidas: multiplicar
+pela matriz, normalizar o vetor resultante e estimar o autovalor associado.
+
+Dada uma matriz \(A\) e um vetor inicial normalizado \(v_0\), cada iteração
+calcula
+
+\[
+z_k = Av_k,
+\]
+
+seguida da normalização
+
+\[
+v_{k+1} = \frac{z_k}{\|z_k\|_2}.
+\]
+
+Ao final, o autovalor dominante é estimado pelo Quociente de Rayleigh:
+
+\[
+\lambda_{\max}
+\approx
+\frac{v_k^T A v_k}{v_k^T v_k}.
+\]
+
+No caso deste projeto, a matriz \(A\) é a Hessiana \(H\) da função de perda no
+ponto encontrado após o treinamento. Portanto, a iteração conceitual passa a
+ser
+
+\[
+z_k = H v_k.
+\]
+
+O ponto crucial é que o código nunca precisa construir \(H\). Ele precisa
+apenas ser capaz de calcular o produto \(Hv_k\), tarefa realizada pelo Truque
+de Pearlmutter.
+
+\begin{algorithm}[H]
+\DontPrintSemicolon
+\Input{Parâmetros treinados \(\theta^{*}\), perda \(L\), número de iterações \(T\)}
+\Output{Estimativa de \(\lambda_{\max}(H)\)}
+\BlankLine
+Escolha um vetor aleatório \(v_0\) com \(\|v_0\|_2=1\)\;
+\Para{\(k = 0, 1, \dots, T-1\)}{
+    Calcule \(z_k \leftarrow H(\theta^{*})v_k\) usando produto Hessiana-vetor\;
+    Estime \(\lambda_k \leftarrow v_k^T z_k\)\;
+    Normalize \(v_{k+1} \leftarrow z_k / \|z_k\|_2\)\;
+}
+\Retorna{\(\lambda_T\)}\;
+\caption{Método da Potência aplicado à Hessiana implícita}
+\label{alg:power_hessian}
+\end{algorithm}
+
+\paragraph{Leitura no contexto do experimento.}
+
+Quando o valor estimado de \(\lambda_{\max}(H)\) é alto, existe pelo menos uma
+direção no espaço de parâmetros em que a loss cresce rapidamente. Essa direção
+é justamente aproximada pelo autovetor dominante produzido pelo Método da
+Potência. No experimento de perturbação direcional, perturbar os pesos nessa
+direção deve causar um aumento maior de loss do que perturbar em direções
+aleatórias comuns.
+
+Quando \(\lambda_{\max}(H)\) é baixo, a maior curvatura local encontrada também
+é pequena. Isso sugere que a região ao redor dos pesos treinados é mais estável
+e, portanto, mais compatível com a noção geométrica de mínimo plano.
+
+\subsection{Truque de Pearlmutter}
+Em problemas de otimização de redes neurais profundas, o vetor de parâmetros possui dimensionalidade colossal ($n \gg 10^6$). O \textbf{Truque de Pearlmutter} (ou produto Hessiana-vetor exato) resolve a limitação de memória ao possibilitar o cálculo direto do produto $H v$, onde $v \in \mathbb{R}^n$ é um vetor arbitrário, sob complexidade de tempo e espaço de ordem \textbf{$\mathcal{O}(n)$}, tornando-o computacionalmente equivalente ao custo de um gradiente tradicional.
+
+\subsubsection{Formulação Matemática e o Operador $\mathcal{R}\{\cdot\}$}
+Seja $\theta \in \mathbb{R}^n$ o vetor de parâmetros da rede neural e $\mathcal{L}(\theta)$ a função de perda. O gradiente é definido por $g(\theta) = \nabla_{\theta} \mathcal{L}(\theta) \in \mathbb{R}^n$ e a matriz Hessiana por $H(\theta) = \nabla_{\theta}^2 \mathcal{L}(\theta) \in \mathbb{R}^{n \times n}$. Objetiva-se computar:
+\begin{equation}
+w = H(\theta) v
+\end{equation}
+
+Pearlmutter introduziu o operador $\mathcal{R}_v\{\cdot\}$, que define a derivada direcional de uma função de parâmetros na direção do vetor $v$, avaliada sob uma perturbação escalar infinitesimal $e$:
+\begin{equation}
+\mathcal{R}_v \{ f(\theta) \} \equiv \left. \frac{d}{de} f(\theta + ev) \right|_{e=0}
+\end{equation}
+
+Aplicando o operador $\mathcal{R}_v\{\cdot\}$ diretamente sobre o vetor do gradiente $g(\theta)$, obtém-se via Regra da Cadeia multivariável:
+\begin{equation}
+\mathcal{R}_v \{ g(\theta) \} = \left. \frac{d}{de} \nabla_{\theta} \mathcal{L}(\theta + ev) \right|_{e=0} = \nabla_{\theta}^2 \mathcal{L}(\theta) \cdot v = H(\theta)v
+\end{equation}
+
+Esta igualdade demonstra analiticamente que o produto Hessiana-vetor pode ser obtido aplicando uma diferenciação unidimensional comum sobre o operador de primeira ordem da rede.
+
+\subsubsection{Implementação Computacional via Diferenciação Automática}
+Nos arcabouços modernos de computação gráfica e diferenciação automática (como PyTorch e TensorFlow), o Truque de Pearlmutter é executado de forma exata através de duas etapas principais:
+\begin{enumerate}
+    \item \textbf{Passada Forward e Backward Inicial:} Avalia-se a função de perda $\mathcal{L}(\theta)$ e computa-se o gradiente convencional via retropropagação padrão: $g(\theta) = \nabla_{\theta} \mathcal{L}(\theta)$.
+    \item \textbf{Projeção Escalar e Segunda Passada:} Realiza-se o produto escalar entre o gradiente obtido e o vetor arbitrário $v$, gerando um escalar funcional $\phi$:
+    \begin{equation}
+    \phi = g(\theta)^T v = \sum_{i=1}^n \frac{\partial \mathcal{L}}{\partial \theta_i} v_i
+    \end{equation}
+    Calcula-se o gradiente deste novo escalar $\phi$ em relação aos parâmetros originais $\theta$. Como $v$ é tratado como uma constante nesta etapa, a linearidade do operador de derivada resulta em:
+    \begin{equation}
+    \nabla_{\theta} \phi = \nabla_{\theta} (g(\theta)^T v) = \nabla_{\theta}^2 \mathcal{L}(\theta) v = H v
+    \end{equation}
+\end{enumerate}
+
+---
+
+\subsection{SAM (Sharpness-Aware Minimization)}
+O algoritmo \textit{Sharpness-Aware Minimization} (SAM) é um procedimento de otimização desenvolvido para aprimorar a capacidade de generalização ao modificar o objetivo de treinamento. Em vez de focar estritamente em um ponto isolado de perda mínima nos dados de treino, o SAM busca uma região no espaço de parâmetros onde toda a vizinhança apresente, uniformemente, valores baixos de perda. Geometricamente, esta formulação força o modelo a convergir para mínimos planos (\textit{flat minima}) em detrimento de mínimos estreitos (\textit{sharp minima}), mitigando cenários de \textit{overfitting}.
+
+\subsubsection{Formulação Matemática e o Problema Min-Max}
+Seja $\mathcal{S} \triangleq \bigcup_{i=1}^{n} \{(x_i, y_i)\}$ o conjunto de dados de treinamento amostrado de uma distribuição $\mathcal{D}$. A perda empírica é dada por $L_{\mathcal{S}}(w) \triangleq \frac{1}{n}\sum_{i=1}^{n} l(w, x_i, y_i)$, onde $w \in \mathbb{R}^d$ representa o vetor de pesos. Baseado em limites teóricos de generalização via formalismo PAC-Bayesiano, o SAM propõe o seguinte problema de otimização min-max:
+\begin{equation}
+\min_{w} L_{\mathcal{S}}^{\text{SAM}}(w) + \lambda \|w\|_2^2 \quad \text{onde} \quad L_{\mathcal{S}}^{\text{SAM}}(w) \triangleq \max_{\|\epsilon\|_2 \le \rho} L_{\mathcal{S}}(w + \epsilon)
+\end{equation}
+onde $\rho > 0$ define o raio da vizinhança esférica sob a norma $\ell_2$, e $\lambda$ controla a regularização por decaimento de pesos (\textit{weight decay}). A métrica de nitidez (\textit{sharpness}) implícita avalia o crescimento local da perda:
+\begin{equation}
+\text{Sharpness}(w) = \max_{\|\epsilon\|_2 \le \rho} L_{\mathcal{S}}(w + \epsilon) - L_{\mathcal{S}}(w)
+\end{equation}
+
+\subsubsection{Linearização do Problema Interno e Vetor Adversário}
+Para viabilizar computacionalmente a maximização interna, aplica-se uma expansão em série de Taylor de primeira ordem para $L_{\mathcal{S}}(w+\epsilon)$ em torno de $\epsilon = 0$:
+\begin{equation}
+\epsilon^*(w) \approx \arg\max_{\|\epsilon\|_2 \le \rho} \left[ L_{\mathcal{S}}(w) + \epsilon^T \nabla_w L_{\mathcal{S}}(w) \right] = \arg\max_{\|\epsilon\|_2 \le \rho} \epsilon^T \nabla_w L_{\mathcal{S}}(w)
+\end{equation}
+
+A solução analítica para este problema sob restrição euclidiana decorre diretamente da aplicação da desigualdade de Cauchy-Schwarz, onde a projeção máxima ocorre quando $\epsilon$ orienta-se colinearmene ao vetor gradiente $\nabla_w L_{\mathcal{S}}(w)$. Assim, a perturbação ótima escalada assume a forma:
+\begin{equation}
+\hat{\epsilon}(w) = \rho \frac{\nabla_w L_{\mathcal{S}}(w)}{\|\nabla_w L_{\mathcal{S}}(w)\|_2}
+\end{equation}
+
+\subsubsection{Aproximação do Gradiente de SAM e Termos de Segunda Ordem}
+Substituindo a perturbação ótima $\hat{\epsilon}(w)$ de volta no objetivo principal e diferenciando em relação a $w$, obtém-se o gradiente efetivo via regra da cadeia:
+\begin{equation}
+\nabla_w L_{\mathcal{S}}^{\text{SAM}}(w) \approx \nabla_w L_{\mathcal{S}}(w)\big|_{w + \hat{\epsilon}(w)} + \left( \frac{d\hat{\epsilon}(w)}{dw} \right) \nabla_w L_{\mathcal{S}}(w)\big|_{w + \hat{\epsilon}(w)}
+\end{equation}
+
+O termo diferencial $\frac{d\hat{\epsilon}(w)}{dw}$ introduz a matriz Hessiana de segunda ordem na equação. Embora passível de cálculo exato via Truque de Pearlmutter, constatou-se empiricamente em \cite{SAM} que o descarte dos termos de segunda ordem acelera consideravelmente o tempo de processamento por época e preserva as propriedades matemáticas de generalização. A aproximação final simplificada do gradiente do SAM estabelece-se como:
+\begin{equation}
+\nabla_w L_{\mathcal{S}}^{\text{SAM}}(w) \approx \nabla_w L_{\mathcal{S}}(w)\big|_{w + \hat{\epsilon}(w)}
+\end{equation}
+
+\subsubsection{Dinâmica do Algoritmo}
+A dinâmica operacional do SAM requer \textbf{duas passadas completas de retropropagação} por iteração sobre um determinado subconjunto de dados (\textit{mini-batch}) $\mathcal{B}$, conforme descrito formalmente no Algoritmo \ref{alg:sam}.
+
+\begin{algorithm}[H]
+\DontPrintSemicolon
+\Input{Conjunto de treino $\mathcal{S}$, Taxa de aprendizado $\eta$, Raio da perturbação $\rho$, Pesos iniciais $w_0$}
+\Output{Pesos otimizados $w$}
+\BlankLine
+\Para{cada iteração $t = 0, 1, 2, \dots$}{
+    Amostre um mini-batch $\mathcal{B} \subset \mathcal{S}$\;
+    Calcule o gradiente empírico inicial: $g_t \leftarrow \nabla_w L_{\mathcal{B}}(w_t)$\;
+    Computar a perturbação adversária ótima: $\hat{\epsilon}_t \leftarrow \rho \frac{g_t}{\|g_t\|_2}$\;
+    Calcular a coordenada de subida máxima: $w_{\text{adv}} \leftarrow w_t + \hat{\epsilon}_t$\;
+    Avaliar o gradiente efetivo na posição perturbada: $g_{\text{SAM}} \leftarrow \nabla_w L_{\mathcal{B}}(w)\big|_{w_{\text{adv}}}$\;
+    Atualizar o vetor de parâmetros original: $w_{t+1} \leftarrow w_t - \eta g_{\text{SAM}}$\;
+}
+\Retorna{$w$}\;
+\caption{Algoritmo Sharpness-Aware Minimization (SAM)}
+\label{alg:sam}
+\end{algorithm}
+
+\begin{thebibliography}{1}
+
+\bibitem{SAM} FORET, Pierre; KLEINER, Ariel; MOBAHI, Hossein; NEYSHABUR, Behnam. Sharpness-aware minimization for efficiently improving generalization. In: \textbf{International Conference on Learning Representations (ICLR)}, 2021, Virtual. Anais... Virtual: ICLR, 2021.
+
+\end{thebibliography}
+
+\end{document}
