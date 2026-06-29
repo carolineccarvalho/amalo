@@ -1,2 +1,5 @@
 venv/
 data/
+__pycache__/
+figuras/strong_sharpness/
+figuras/smoke_strong_sharpness*/
